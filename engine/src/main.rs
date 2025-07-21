@@ -2,5 +2,5 @@
 use engine::run;
 
 fn main() {
-    run();
+    let _ = run();
 }

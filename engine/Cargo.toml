@@ -15,6 +15,12 @@ wgpu = "25.0"
 cfg-if = "1"
 pollster = "0.3"
 bytemuck = { version = "1.16", features = [ "derive" ] }
+cgmath = "0.18"
+
+[dependencies.image]
+version = "0.24"
+default-features = false
+features = ["png", "jpeg"]
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

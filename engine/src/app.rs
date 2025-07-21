@@ -50,8 +50,7 @@ impl ApplicationHandler<State> for App {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // If we are not on web we can use pollster to
-            // await the
+            // If we are not on web we can use pollster to await
             self.state = Some(pollster::block_on(State::new(window)).unwrap());
         }
 

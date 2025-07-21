@@ -2,6 +2,7 @@
 pub mod state;
 pub mod app;
 pub mod vertex_buffer;
+pub mod texture;
 
 use env_logger;
 use crate::app::App;
