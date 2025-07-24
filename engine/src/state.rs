@@ -6,10 +6,9 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use wgpu::util::DeviceExt;
 use winit::{
-    application::ApplicationHandler,
     event::*,
-    event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::{KeyCode, PhysicalKey},
+    event_loop::ActiveEventLoop,
+    keyboard::KeyCode,
     window::Window,
 };
 
@@ -218,7 +217,7 @@ impl State {
             ],
         });
 
-        let camera_controller = CameraController::new(0.15);
+        let camera_controller = CameraController::new(0.08);
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -376,7 +375,7 @@ impl State {
     pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
         match (code, is_pressed) {
             (KeyCode::Escape, true) => event_loop.exit(),
-            (KeyCode::Space, true) => {
+            (KeyCode::Tab, true) => {
                 self.current_pipeline = match self.current_pipeline {
                     PipelineType::Default => PipelineType::Experimental,
                     PipelineType::Experimental => PipelineType::Default,
