@@ -3,17 +3,10 @@ pub mod state;
 pub mod app;
 pub mod vertex_buffer;
 pub mod texture;
+pub mod camera;
 
-use env_logger;
 use crate::app::App;
-use crate::state::State;
-use winit::{
-    application::ApplicationHandler, 
-    event::*, 
-    event_loop::{ActiveEventLoop, EventLoop}, 
-    keyboard::{KeyCode, PhysicalKey}, 
-    window::Window
-};
+use winit::event_loop::EventLoop;
 
 pub fn run() -> anyhow::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
