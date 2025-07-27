@@ -8,11 +8,13 @@ use winit::{
     keyboard::PhysicalKey,
     window::Window,
 };
+use instant::Instant;
 
 pub struct App {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
     state: Option<State>,
+    last_render: Instant,
 }
 
 impl App {
@@ -23,6 +25,7 @@ impl App {
             state: None,
             #[cfg(target_arch = "wasm32")]
             proxy,
+            last_render: Instant::now(),
         }
     }
 }
@@ -127,13 +130,26 @@ impl ApplicationHandler<State> for App {
         }
     }
 
+    fn device_event(&mut self, event_loop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent) {
+        let state = match &mut self.state {
+            Some(canvas) => canvas,
+            None => return,
+        };
+
+        let _device_event = state.device_input(&event);
+    }
+
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         let state = match &mut self.state {
             Some(canvas) => canvas,
             None => return,
         };
 
-        state.update();
+        let now = Instant::now();
+        let dt = now - self.last_render;
+        self.last_render = now;
+
+        state.update(dt);
         state.window.request_redraw();
     }
 }
