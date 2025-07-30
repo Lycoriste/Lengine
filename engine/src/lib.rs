@@ -4,6 +4,7 @@ pub mod app;
 pub mod vertex_buffer;
 pub mod texture;
 pub mod camera;
+pub mod instance;
 
 use crate::app::App;
 use winit::event_loop::EventLoop;
