@@ -1,14 +1,14 @@
 // engine/src/state.rs
 use crate::vertex_buffer::Vertex;
 use crate::texture::Texture;
-use crate::camera::{Camera, CameraUniform, CameraController};
+use crate::camera::{Camera, Projection, CameraUniform, CameraController};
 use std::sync::Arc;
 use std::collections::HashMap;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::ActiveEventLoop,
-    keyboard::KeyCode,
+    keyboard::{PhysicalKey, KeyCode},
     window::Window,
 };
 
@@ -38,10 +38,12 @@ pub struct State {
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: Texture,
     camera: Camera,
+    projection: Projection,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_controller: CameraController,
+    mouse_pressed: bool,
 }
 
 const VERTICES: &[Vertex] = &[
@@ -167,18 +169,22 @@ impl State {
             }
         );
 
-        let camera = Camera {
-            eye: (0.0, 1.0, 2.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
-            aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
-        };
+        let camera = Camera::new(
+            (0.0, 5.0, 10.0),
+            cgmath::Deg(-90.0),
+            cgmath::Deg(-20.0),
+        );
+        let projection = Projection::new(
+            config.width, 
+            config.height, 
+            cgmath::Deg(45.0), 
+            0.1, 
+            100.0
+        );
+        let camera_controller = CameraController::new(4.0, 1.0); // [speed, sensitivity]
 
         let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(&camera);
+        camera_uniform.update_view_proj(&camera, &projection);
         
         let camera_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -216,8 +222,6 @@ impl State {
                 },
             ],
         });
-
-        let camera_controller = CameraController::new(0.08);
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -341,29 +345,32 @@ impl State {
 
                 
         Ok(Self{
-            surface:surface,
-            device:device,
-            queue:queue,
-            config:config,
+            surface,
+            device,
+            queue,
+            config,
             is_surface_configured:false,
             current_pipeline: PipelineType::Default,
-            pipelines:pipelines,
-            vertex_buffer:vertex_buffer,
-            index_buffer:index_buffer,
-            window:window,
-            num_vertices:num_vertices,
-            num_indices:num_indices,
-            diffuse_bind_group:diffuse_bind_group,
-            diffuse_texture:diffuse_texture,
-            camera:camera,
-            camera_uniform:camera_uniform,
-            camera_buffer:camera_buffer,
-            camera_bind_group:camera_bind_group,
-            camera_controller:camera_controller,
+            pipelines,
+            vertex_buffer,
+            index_buffer,
+            window,
+            num_vertices,
+            num_indices,
+            diffuse_bind_group,
+            diffuse_texture,
+            camera,
+            projection,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
+            camera_controller,
+            mouse_pressed: false,
         })
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
+        self.projection.resize(width, height);
         if width > 0 && height > 0 {
             self.config.width = width;
             self.config.height = height;
@@ -428,8 +435,7 @@ impl State {
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..self.num_indices, 0, 0..1); // TODO: Swap out hard coded 3 vertices to len(VERTICES) from
-                                      // buffer
+        render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         drop(render_pass);
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -438,13 +444,52 @@ impl State {
         Ok(())
     }
 
-    pub fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
-        self.camera_uniform.update_view_proj(&self.camera);
+    pub fn update(&mut self, dt: instant::Duration) {
+        self.camera_controller.update_camera(&mut self.camera, dt);
+        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event)
+        match event {
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(_),
+                        state,
+                        ..
+                    },
+                ..
+            } => self.camera_controller.process_events(event),
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.camera_controller.handle_mouse_scroll(delta);
+                true
+            }
+            WindowEvent::MouseInput {
+                button: MouseButton::Left,
+                state,
+                ..
+            } => {
+                self.mouse_pressed = *state == ElementState::Pressed;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub fn device_input(&mut self, event: &DeviceEvent) -> bool {
+        match event {
+            DeviceEvent::MouseMotion { delta } => { 
+                if self.mouse_pressed {
+                    self.camera_controller.handle_mouse(delta.0, delta.1);
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
     }
 }
+
+
