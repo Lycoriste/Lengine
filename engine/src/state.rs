@@ -4,6 +4,7 @@ use crate::texture::Texture;
 use crate::camera::{Camera, CameraController, CameraUniform, Projection};
 use crate::instance::{Instance, InstanceRaw};
 use crate::resources;
+use crate::pipeline;
 use std::sync::Arc;
 use std::collections::HashMap;
 use cgmath::prelude::*;
@@ -18,7 +19,7 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-// Used for managing rendering pipelines via hashmap
+// Used for managing render pipelines
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 enum PipelineType {
     Default,
@@ -73,8 +74,6 @@ impl State {
             })
             .await?;
 
-        // The features field on DeviceDescriptor allows
-        // us to specify the extra features we want
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
@@ -126,8 +125,6 @@ impl State {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::FRAGMENT,
-                        // This should match the filterable field of the
-                        // corresponding Texture entry above.
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
@@ -227,7 +224,7 @@ impl State {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/shader.wgsl").into()),
         });
-
+        
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[
@@ -237,105 +234,33 @@ impl State {
             push_constant_ranges: &[],
         });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[
-                    ModelVertex::desc(),
-                    InstanceRaw::desc(),
-                ],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
+        let render_pipeline = pipeline::create_render_pipeline(
+            &device, 
+            &config, 
+            "Shader pipeline",
+            &render_pipeline_layout,
+            &shader,
+            &[ModelVertex::desc(), InstanceRaw::desc()],
+        );
 
-        // Experimental pipeline
-        let ex_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let bw_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Experimental shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/ex_shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/bw_shader.wgsl").into()),
         });
 
-        let ex_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render pipeline for experimental shader"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &ex_shader,
-                entry_point: Some("vs_main"),
-                buffers: &[
-                    ModelVertex::desc(),
-                    InstanceRaw::desc(),
-                ],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &ex_shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
+        let bw_pipeline = pipeline::create_render_pipeline(
+            &device, 
+            &config, 
+            "Shader pipeline",
+            &render_pipeline_layout,
+            &bw_shader,
+            &[ModelVertex::desc(), InstanceRaw::desc()],
+        );
 
         let mut pipelines: HashMap<PipelineType, wgpu::RenderPipeline> = HashMap::new();
         pipelines.insert(PipelineType::Default, render_pipeline);
-        pipelines.insert(PipelineType::Experimental, ex_pipeline);
+        pipelines.insert(PipelineType::Experimental, bw_pipeline);
 
-                
         Ok(Self{
             surface,
             device,

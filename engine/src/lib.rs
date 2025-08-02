@@ -7,6 +7,7 @@ pub mod camera;
 pub mod instance;
 pub mod model;
 pub mod resources;
+pub mod pipeline;
 
 use crate::app::App;
 use winit::event_loop::EventLoop;
