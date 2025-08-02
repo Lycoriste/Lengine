@@ -111,8 +111,8 @@ impl State {
         };
        
         // Compile-time bakes image into bin
-        let diffuse_bytes = include_bytes!("../assets/smoking_loli.jpg");
-        let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap(); // CHANGED!
+        let diffuse_bytes = include_bytes!("../res/smoking_loli.jpg");
+        let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "../res/smoking_loli.png").unwrap();
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let texture_bind_group_layout =

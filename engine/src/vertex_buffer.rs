@@ -1,3 +1,4 @@
+// engine/src/vertex_buffer.rs
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {

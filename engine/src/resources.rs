@@ -40,10 +40,15 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     };
     #[cfg(not(target_arch = "wasm32"))]
     let data = {
-        let path = std::path::Path::new(env!("OUT_DIR"))
+        let out_dir = std::path::Path::new(env!("OUT_DIR"));
+        println!("OUT_DIR: {:?}", out_dir);
+
+        let path = out_dir
             .join("res")
             .join(file_name);
-        std::fs::read(path)?
+        
+        println!("Attempting to read file at path: {:?}", path);
+        std::fs::read(&path)?
     };
 
     Ok(data)
