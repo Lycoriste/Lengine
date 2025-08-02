@@ -34,6 +34,8 @@ pub struct State {
     current_pipeline: PipelineType,
     pipelines: HashMap<PipelineType, wgpu::RenderPipeline>,
     pub window: Arc<Window>,
+    diffuse_bind_group: wgpu::BindGroup,
+    diffuse_texture: Texture,
     camera: Camera,
     projection: Projection,
     camera_uniform: CameraUniform,
@@ -104,10 +106,13 @@ impl State {
             height: size.height,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![],
+            view_formats: vecres![],
             desired_maximum_frame_latency: 2,
         };
        
+        // Compile-time bakes image into bin
+        let diffuse_bytes = include_bytes!("../res/smoking_loli.jpg");
+        let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "../res/smoking_loli.png").unwrap();
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let texture_bind_group_layout =
@@ -135,7 +140,24 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             }
         );
-       
+        
+        let diffuse_bind_group = device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                label: Some("diffuse_bind_group"),
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                    }
+                ],
+            }
+        );
+
         let camera = Camera::new(
             (0.0, 5.0, 10.0),
             cgmath::Deg(-90.0),
@@ -345,6 +367,8 @@ impl State {
             current_pipeline: PipelineType::Default,
             pipelines,
             window,
+            diffuse_bind_group,
+            diffuse_texture,
             camera,
             projection,
             camera_uniform,
@@ -430,9 +454,10 @@ impl State {
 
         let pipeline = self.pipelines.get(&self.current_pipeline).unwrap();
         render_pass.set_pipeline(pipeline);
+        render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        render_pass.draw_model_instanced(&self.obj_model, 0..self.instances.len() as u32, &self.camera_bind_group);
+        render_pass.draw_mesh_instanced(&self.obj_model.meshes[0], 0..self.instances.len() as u32);
         drop(render_pass);
 
         self.queue.submit(std::iter::once(encoder.finish()));

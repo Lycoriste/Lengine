@@ -130,7 +130,7 @@ impl ApplicationHandler<State> for App {
         }
     }
 
-    fn device_event(&mut self, event_loop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent) {
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, event: DeviceEvent) {
         let state = match &mut self.state {
             Some(canvas) => canvas,
             None => return,

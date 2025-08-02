@@ -9,8 +9,8 @@ use cgmath::{
     Rad,
 };
 use winit::{
-    event::*, 
-    keyboard::{KeyCode, PhysicalKey}, 
+    event::*,
+    keyboard::{KeyCode, PhysicalKey},
     dpi::PhysicalPosition,
 };
 use instant::Duration;
@@ -243,6 +243,3 @@ impl CameraController {
         }
     }
 }
-
-
-

@@ -7,22 +7,27 @@ edition = "2024"
 strip = true
 
 [dependencies]
+anyhow="1.0"
+winit={version="0.30",features=["android-native-activity"]}
+env_logger="0.10"
+log="0.4"
+wgpu="25.0"
+cfg-if="1"
+pollster="0.3"
+bytemuck={version="1.16",features=["derive"]}
+cgmath="0.18"
+instant="0.1"
+tobj = { version = "3.2", default-features = false, features = ["async"]}
+
+[build-dependencies]
 anyhow = "1.0"
-winit = { version = "0.30", features = ["android-native-activity"] }
-env_logger = "0.10"
-log = "0.4"
-wgpu = "25.0"
-cfg-if = "1"
-pollster = "0.3"
-bytemuck = { version = "1.16", features = [ "derive" ] }
-cgmath = "0.18"
-instant = "0.1"
+fs_extra = "1.2"
+glob = "0.3"
 
 [dependencies.image]
 version = "0.24"
 default-features = false
 features = ["png", "jpeg"]
-
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
@@ -34,7 +39,9 @@ web-sys = { version = "0.3", features = [
     "Document",
     "Window",
     "Element",
+    "Location",
 ]}
+reqwest={version="0.11"}
 
 [lib]
 crate-type = ["cdylib", "rlib"]
