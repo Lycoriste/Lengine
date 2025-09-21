@@ -1,4 +1,3 @@
-// engine/src/model.rs
 use std::mem;
 use std::ops::Range;
 use crate::texture::Texture;
