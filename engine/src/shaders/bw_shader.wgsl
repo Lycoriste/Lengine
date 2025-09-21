@@ -1,6 +1,3 @@
-// engine/src/shaders/ex_shader.wgsl
-// Cache the shader -- nearest neighbor lags
-
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };

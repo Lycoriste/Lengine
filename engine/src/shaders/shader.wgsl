@@ -1,4 +1,3 @@
-// engine/src/shaders/shader.wgsl
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };

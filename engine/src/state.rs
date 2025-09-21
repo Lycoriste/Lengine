@@ -1,4 +1,3 @@
-// engine/src/state.rs
 use crate::model::{DrawModel, Model, ModelVertex, Vertex};
 use crate::texture::Texture;
 use crate::camera::{Camera, CameraController, CameraUniform, Projection};

@@ -1,6 +1,5 @@
-// engine/src/pipeline.rs
-
 use crate::texture::Texture;
+
 pub fn create_render_pipeline(
     device: &wgpu::Device,
     config: &wgpu::SurfaceConfiguration,

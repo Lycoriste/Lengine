@@ -1,4 +1,3 @@
-// engine/src/camera.rs
 use cgmath::{
     Point3,
     Vector3,

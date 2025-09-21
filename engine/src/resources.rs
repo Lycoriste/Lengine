@@ -1,4 +1,3 @@
-// engine/src/resources.rs
 use std::io::{BufReader, Cursor};
 use wgpu::util::DeviceExt;
 use crate::{model, texture};
