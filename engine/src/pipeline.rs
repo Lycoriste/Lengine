@@ -1,6 +1,4 @@
 // engine/src/pipeline.rs
-//
-// Remove hard-coded later
 
 use crate::texture::Texture;
 pub fn create_render_pipeline(

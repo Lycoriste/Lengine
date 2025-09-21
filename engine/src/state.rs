@@ -251,7 +251,7 @@ impl State {
         let bw_pipeline = pipeline::create_render_pipeline(
             &device, 
             &config, 
-            "Shader pipeline",
+            "BWShader pipeline",
             &render_pipeline_layout,
             &bw_shader,
             &[ModelVertex::desc(), InstanceRaw::desc()],
