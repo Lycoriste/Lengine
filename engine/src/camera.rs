@@ -204,7 +204,7 @@ impl CameraController {
     }
 
     pub fn handle_mouse_scroll(&mut self, delta: &MouseScrollDelta) {
-        self.scroll = -match delta {
+        self.scroll = match delta {
             // Assuming a line is about 100 pixels
             MouseScrollDelta::LineDelta(_, scroll) => scroll * 100.0,
             MouseScrollDelta::PixelDelta(PhysicalPosition {

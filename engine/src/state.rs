@@ -305,19 +305,6 @@ impl State {
         self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
-    pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
-        match (code, is_pressed) {
-            (KeyCode::Escape, true) => event_loop.exit(),
-            (KeyCode::Tab, true) => {
-                self.current_pipeline = match self.current_pipeline {
-                    PipelineType::Default => PipelineType::Experimental,
-                    PipelineType::Experimental => PipelineType::Default,
-                };
-            },
-            _ => {}
-        }
-    }
-
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
@@ -342,10 +329,10 @@ impl State {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.4,
-                        g: 0.4,
-                        b: 0.5,
-                        a: 1.0,
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.0,
                     }),
                     store: wgpu::StoreOp::Store,
                 },
@@ -419,6 +406,19 @@ impl State {
                 }
             }
             _ => false,
+        }
+    }
+    
+    pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
+        match (code, is_pressed) {
+            (KeyCode::Escape, true) => event_loop.exit(),
+            (KeyCode::Tab, true) => {
+                self.current_pipeline = match self.current_pipeline {
+                    PipelineType::Default => PipelineType::Experimental,
+                    PipelineType::Experimental => PipelineType::Default,
+                };
+            },
+            _ => {}
         }
     }
 }
