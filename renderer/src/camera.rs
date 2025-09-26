@@ -57,8 +57,8 @@ pub struct CameraController {
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
     pub view_proj: [[f32;4];4],
-    pub view: [[f32;4];4],
     pub view_pos: [f32;4],
+    pub view: [[f32;4];4],
 }
 
 impl Camera {

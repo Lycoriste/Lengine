@@ -1,5 +1,6 @@
 struct CameraUniform {
     view_proj: mat4x4<f32>,
+    view_pos: vec4<f32>,
     view: mat4x4<f32>,
 };
 
@@ -25,8 +26,9 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
     @location(1) view_pos: vec3<f32>,
-    @location(2) view_normal: vec3<f32>,
-}
+    @location(2) tangent: vec3<f32>,
+    @location(3) bitangent: vec3<f32>,
+    @location(4) normal: vec3<f32>,}
 
 struct InstanceInput {
     @location(5) model_matrix_0: vec4<f32>,
@@ -53,8 +55,11 @@ fn vs_main(model: VertexInput, instance: InstanceInput) -> VertexOutput {
     instance.normal_matrix_2,
   );
 
+  out.normal = normalize(normal_matrix * model.normal);
+  out.tangent = normalize(normal_matrix * model.tangent.xyz);
+  out.bitangent = normalize(cross(out.normal, out.tangent)) * model.tangent.w;
+
   out.view_pos = (camera.view * model_matrix * vec4<f32>(model.position, 1.0)).xyz;
-  out.view_normal = normal_matrix * model.normal;
   out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
   out.tex_coords = model.tex_coords;
 
@@ -71,24 +76,27 @@ var t_normal: texture_2d<f32>;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let tbn = mat3x3<f32>(in.tangent, in.bitangent, in.normal);
+
     let obj_color: vec4<f32> = textureSample(t_diffuse, t_sampler, in.tex_coords);
     let obj_norm: vec4<f32> = textureSample(t_normal, t_sampler, in.tex_coords);
-    let normal = normalize(obj_norm.xyz * 2.0 - 1.0);
+    let tangent_normal = normalize(obj_norm.xyz * 2.0 - 1.0);
+    let view_space_normal = normalize(tbn * tangent_normal);
 
-    let AMBIENT_STRENGTH = 0.1;
+    let AMBIENT_STRENGTH = 0.15;
     let ambient_color = light.color * AMBIENT_STRENGTH;
 
     let light_dir = normalize(light.position - in.view_pos);
     let view_dir = normalize(-in.view_pos);
     let half_dir = normalize(view_dir + light_dir);
 
-    let diffuse_strength = max(dot(normal, light_dir), 0.0);
+    let diffuse_strength = max(dot(view_space_normal, light_dir), 0.0);
     let diffuse_color = light.color * diffuse_strength;
 
-    let specular_strength = pow(max(dot(normal, half_dir), 0.0), 32.0);
+    let specular_strength = pow(max(dot(view_space_normal, half_dir), 0.0), 32.0);
     let specular_color = specular_strength * light.color;
     let result = (ambient_color + diffuse_color + specular_color) * obj_color.xyz;
-
+    
     return vec4<f32>(result, obj_color.a);
 }
 
