@@ -1,7 +1,7 @@
 use crate::model::{DrawModel, Model, ModelVertex, Vertex};
 use crate::camera::{Camera, CameraController, CameraUniform, Projection};
 use crate::instance::{Instance, InstanceRaw};
-use crate::light::LightUniform;
+use crate::light::{LightUniform, DrawLight};
 use crate::texture::Texture;
 use crate::uniform::UniformResource;
 use crate::resources;
@@ -25,6 +25,7 @@ use wasm_bindgen::prelude::*;
 enum PipelineType {
     Default,
     Experimental,
+    Light,
 }
 
 pub struct State {
@@ -174,7 +175,7 @@ impl State {
             &device,
             "light",
             &[light_uniform],
-            wgpu::ShaderStages::FRAGMENT,
+            wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
             0,
         );
 
@@ -251,9 +252,33 @@ impl State {
             )
         };
 
+        let light_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Light pipeline layout"),
+                bind_group_layouts: &[
+                    &camera_resources.layout, 
+                    &light_resources.layout
+                ],
+                push_constant_ranges: &[],
+            });
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Unlit shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/unlit.wgsl").into()),
+            });
+            pipeline::create_render_pipeline(
+                &device,
+                &config,
+                "Unlit shader pipeline",
+                &layout,
+                &shader,
+                &[ModelVertex::desc(), InstanceRaw::desc()],
+            )
+        };
+
         let mut pipelines: HashMap<PipelineType, wgpu::RenderPipeline> = HashMap::new();
         pipelines.insert(PipelineType::Default, render_pipeline);
         pipelines.insert(PipelineType::Experimental, bw_pipeline);
+        pipelines.insert(PipelineType::Light, light_pipeline);
 
         Ok(Self{
             surface,
@@ -336,10 +361,21 @@ impl State {
         });
 
         let pipeline = self.pipelines.get(&self.current_pipeline).unwrap();
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+
+        render_pass.set_pipeline(self.pipelines.get(&PipelineType::Light).unwrap());
+        render_pass.set_bind_group(0, &self.camera_resources.bind_group, &[]);
+        render_pass.set_bind_group(1, &self.light_resources.bind_group, &[]);
+        render_pass.draw_light_model(
+            &self.obj_model,
+            &self.camera_resources.bind_group,
+            &self.light_resources.bind_group,
+        );
+
         render_pass.set_pipeline(pipeline);
         render_pass.set_bind_group(1, &self.camera_resources.bind_group, &[]);
         render_pass.set_bind_group(1, &self.light_resources.bind_group, &[]);
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        
         render_pass.draw_model_instanced(
             &self.obj_model, 
             0..self.instances.len() as u32, 
@@ -358,6 +394,13 @@ impl State {
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(&self.camera_resources.buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+
+        let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
+        self.light_uniform.position =
+            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
+                * old_position)
+                .into();
+        self.queue.write_buffer(&self.light_resources.buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));    
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -408,6 +451,7 @@ impl State {
                 self.current_pipeline = match self.current_pipeline {
                     PipelineType::Default => PipelineType::Experimental,
                     PipelineType::Experimental => PipelineType::Default,
+                    _ => PipelineType::Default,
                 };
             },
             _ => {}

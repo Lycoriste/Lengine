@@ -5,8 +5,8 @@ struct CameraUniform {
 };
 
 struct LightUniform {
-    color: vec3<f32>,
     position: vec3<f32>,
+    color: vec3<f32>,
 }
 
 @group(1) @binding(0)
@@ -28,7 +28,8 @@ struct VertexOutput {
     @location(1) view_pos: vec3<f32>,
     @location(2) tangent: vec3<f32>,
     @location(3) bitangent: vec3<f32>,
-    @location(4) normal: vec3<f32>,}
+    @location(4) normal: vec3<f32>,
+}
 
 struct InstanceInput {
     @location(5) model_matrix_0: vec4<f32>,
@@ -55,9 +56,9 @@ fn vs_main(model: VertexInput, instance: InstanceInput) -> VertexOutput {
     instance.normal_matrix_2,
   );
 
-  out.normal = normalize(normal_matrix * model.normal);
   out.tangent = normalize(normal_matrix * model.tangent.xyz);
   out.bitangent = normalize(cross(out.normal, out.tangent)) * model.tangent.w;
+  out.normal = normalize(normal_matrix * model.normal);
 
   out.view_pos = (camera.view * model_matrix * vec4<f32>(model.position, 1.0)).xyz;
   out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
