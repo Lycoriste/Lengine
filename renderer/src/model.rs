@@ -1,5 +1,6 @@
 use std::mem;
 use std::ops::Range;
+use mikktspace;
 use crate::texture::Texture;
 
 #[repr(C)]
@@ -8,6 +9,7 @@ pub struct ModelVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],
     pub normal: [f32; 3],
+    pub tangent: [f32; 3],
 }
 pub struct Model {
     pub meshes: Vec<Mesh>,
@@ -27,6 +29,54 @@ pub struct Mesh {
     pub material: usize,
 }
 
+pub struct TobjMeshWrapper<'a> {
+    pub mesh: &'a tobj::Mesh,
+    pub tangents: &'a mut Vec<[f32; 4]>,
+}
+
+impl<'a> TobjMeshWrapper<'a> {
+    fn get_vertex_index(&self, face: usize, vert: usize) -> usize {
+        self.mesh.indices[face * 3 + vert] as usize
+    }
+}
+
+impl<'a> mikktspace::Geometry for TobjMeshWrapper<'a> {
+    fn num_faces(&self) -> usize {
+        self.mesh.indices.len() / 3
+    }
+
+    fn num_vertices_of_face(&self, _face: usize) -> usize {
+        3 // Triangulate mesh
+    }
+
+    fn position(&self, face: usize, vert: usize) -> [f32; 3] {
+        let i = self.get_vertex_index(face, vert);
+        [
+            self.mesh.positions[i * 3],
+            self.mesh.positions[i * 3 + 1],
+            self.mesh.positions[i * 3 + 2],
+        ]
+    }
+
+    fn normal(&self, face: usize, vert: usize) -> [f32; 3] {
+        let i = self.get_vertex_index(face, vert);
+        [
+            self.mesh.normals[i * 3],
+            self.mesh.normals[i * 3 + 1],
+            self.mesh.normals[i * 3 + 2],
+        ]
+    }
+
+    fn tex_coord(&self, face: usize, vert: usize) -> [f32; 2] {
+        let i = self.get_vertex_index(face, vert);
+        [self.mesh.texcoords[i * 2], self.mesh.texcoords[i * 2 + 1]]
+    }
+
+    fn set_tangent_encoded(&mut self, tangent: [f32; 4], face: usize, vert: usize) {
+        let i = self.get_vertex_index(face, vert);
+        self.tangents[i] = tangent;
+    }
+}
 
 impl Material {
     pub fn new(
@@ -53,7 +103,7 @@ impl Material {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::TextureView(&normal_texture.view),
-                }
+                },
             ],
         });
 
@@ -77,10 +127,10 @@ fn desc() -> wgpu::VertexBufferLayout<'static> {
         array_stride: mem::size_of::<ModelVertex>() as wgpu::BufferAddress,
         step_mode: wgpu::VertexStepMode::Vertex,
         attributes: &[
-            wgpu::VertexAttribute {
-                offset: 0,
-                shader_location: 0,
-                format: wgpu::VertexFormat::Float32x3,
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
@@ -92,6 +142,11 @@ fn desc() -> wgpu::VertexBufferLayout<'static> {
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float32x3,
                 },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
             ],
         }
     }
@@ -99,21 +154,23 @@ fn desc() -> wgpu::VertexBufferLayout<'static> {
 
 
 pub trait DrawModel<'a> {
-    fn draw_mesh(&mut self, mesh: &'a Mesh, material: &'a Material, camera_bind_group: &'a wgpu::BindGroup);
+    fn draw_mesh(&mut self, mesh: &'a Mesh, material: &'a Material, camera_bind_group: &'a wgpu::BindGroup, light_bind_group: &'a wgpu::BindGroup);
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'a Mesh,
         material: &'a Material,
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
     );
     
-    fn draw_model(&mut self, model: &'a Model, camera_bind_group: &'a wgpu::BindGroup);
+    fn draw_model(&mut self, model: &'a Model, camera_bind_group: &'a wgpu::BindGroup, light_bind_group: &'a wgpu::BindGroup);
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
     );
 }
 
@@ -122,8 +179,8 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn draw_mesh(&mut self, mesh: &'b Mesh, material: &'b Material, camera_bind_group: &'b wgpu::BindGroup) {
-        self.draw_mesh_instanced(mesh, material, 0..1, camera_bind_group);
+    fn draw_mesh(&mut self, mesh: &'b Mesh, material: &'b Material, camera_bind_group: &'b wgpu::BindGroup, light_bind_group: &'b wgpu::BindGroup) {
+        self.draw_mesh_instanced(mesh, material, 0..1, camera_bind_group, light_bind_group);
     }
     fn draw_mesh_instanced(
         &mut self,
@@ -131,28 +188,30 @@ where
         material: &'b Material,
         instances: Range<u32>,
         camera_bind_group: &'b wgpu::BindGroup,
+        light_bind_group: &'b wgpu::BindGroup,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, &material.bind_group, &[]);
         self.set_bind_group(1, camera_bind_group, &[]);
+        self.set_bind_group(2, light_bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 
-    fn draw_model(&mut self, model: &'b Model, camera_bind_group: &'b wgpu::BindGroup) {
-        self.draw_model_instanced(model, 0..1, camera_bind_group);
+    fn draw_model(&mut self, model: &'b Model, camera_bind_group: &'b wgpu::BindGroup, light_bind_group: &'b wgpu::BindGroup) {
+        self.draw_model_instanced(model, 0..1, camera_bind_group, light_bind_group);
     }
     fn draw_model_instanced(
         &mut self,
         model: &'b Model,
         instances: Range<u32>,
         camera_bind_group: &'b wgpu::BindGroup,
+        light_bind_group: &'b wgpu::BindGroup,
     ) {
         for mesh in &model.meshes {
             let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(mesh, material, instances.clone(), camera_bind_group);
+            self.draw_mesh_instanced(mesh, material, instances.clone(), camera_bind_group, light_bind_group);
         }
     }
 }
-
 

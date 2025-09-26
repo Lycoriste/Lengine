@@ -1,5 +1,6 @@
 use std::io::{BufReader, Cursor};
 use wgpu::util::DeviceExt;
+use mikktspace;
 use crate::{model, texture};
 
 #[cfg(target_arch = "wasm32")]
@@ -117,8 +118,13 @@ pub async fn load_model(
     let meshes = models
         .into_iter()
         .map(|m| {
+                let mut tangents = vec![[0.0; 4]; m.mesh.positions.len() / 3];
+                let mut wrapper = model::TobjMeshWrapper { mesh: &m.mesh, tangents: &mut tangents };
+                mikktspace::generate_tangents(&mut wrapper);
                 let vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| {
+                    let tangent = tangents[i];
+
                     if m.mesh.normals.is_empty(){
                         model::ModelVertex {
                             position: [
@@ -128,8 +134,9 @@ pub async fn load_model(
                             ],
                             tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
                             normal: [0.0, 0.0, 0.0],
+                            tangent: [0.0, 0.0, 0.0],
                         }
-                    }else{
+                    } else {
                         model::ModelVertex {
                             position: [
                                 m.mesh.positions[i * 3],
@@ -142,6 +149,7 @@ pub async fn load_model(
                                 m.mesh.normals[i * 3 + 1],
                                 m.mesh.normals[i * 3 + 2],
                             ],
+                            tangent:[tangent[0], tangent[1], tangent[2]],
                         }
                     }
                 })
