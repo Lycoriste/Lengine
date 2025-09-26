@@ -1,6 +1,5 @@
 struct CameraUniform {
     view_proj: mat4x4<f32>,
-    view_pos: vec4<f32>,
     view: mat4x4<f32>,
 };
 
@@ -50,15 +49,29 @@ fn vs_main(model: VertexInput, instance: InstanceInput) -> VertexOutput {
     instance.model_matrix_2,
     instance.model_matrix_3,
   );
+  let model_matrix3x3 = mat3x3<f32>(
+    model_matrix[0].xyz,
+    model_matrix[1].xyz,
+    model_matrix[2].xyz
+  );
   let normal_matrix = mat3x3<f32> (
     instance.normal_matrix_0,
     instance.normal_matrix_1,
     instance.normal_matrix_2,
   );
-
-  out.tangent = normalize(normal_matrix * model.tangent.xyz);
-  out.bitangent = normalize(cross(out.normal, out.tangent)) * model.tangent.w;
+  let view_matrix3x3 = mat3x3<f32>(
+    camera.view[0].xyz,
+    camera.view[1].xyz,
+    camera.view[2].xyz
+  );
+  
   out.normal = normalize(normal_matrix * model.normal);
+  out.tangent = normalize(model_matrix3x3 * model.tangent.xyz);
+  out.bitangent = normalize(cross(out.normal, out.tangent)) * model.tangent.w;
+
+  out.normal = out.normal * view_matrix3x3;
+  out.tangent = out.tangent * view_matrix3x3;
+  out.bitangent = out.bitangent * view_matrix3x3;
 
   out.view_pos = (camera.view * model_matrix * vec4<f32>(model.position, 1.0)).xyz;
   out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
@@ -66,7 +79,6 @@ fn vs_main(model: VertexInput, instance: InstanceInput) -> VertexOutput {
 
   return out;
 }
-
 
 @group(0) @binding(0)
 var t_diffuse: texture_2d<f32>;
@@ -86,8 +98,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let AMBIENT_STRENGTH = 0.15;
     let ambient_color = light.color * AMBIENT_STRENGTH;
-
-    let light_dir = normalize(light.position - in.view_pos);
+    
+    let light_pos_view = (camera.view * vec4<f32>(light.position, 1.0)).xyz;
+    let light_dir = normalize(light_pos_view - in.view_pos);
     let view_dir = normalize(-in.view_pos);
     let half_dir = normalize(view_dir + light_dir);
 

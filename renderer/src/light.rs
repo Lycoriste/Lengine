@@ -13,7 +13,7 @@ pub struct LightUniform {
 impl Default for LightUniform {
     fn default() -> Self {
         Self {
-            position: [0.0, 3.0, 5.0],
+            position: [2.0, 3.0, 2.0],
             _padding: 0,
             color: [1.0, 1.0, 1.0],
             _padding2: 0,

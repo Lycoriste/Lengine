@@ -2,9 +2,10 @@ use std::mem;
 use std::ops::Range;
 use mikktspace;
 use crate::texture::Texture;
+use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct ModelVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],
