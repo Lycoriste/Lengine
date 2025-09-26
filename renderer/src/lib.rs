@@ -1,12 +1,14 @@
-pub mod state;
 pub mod app;
+pub mod state;
 pub mod vertex_buffer;
+pub mod uniform;
 pub mod texture;
 pub mod camera;
 pub mod instance;
 pub mod model;
 pub mod resources;
 pub mod pipeline;
+pub mod light;
 
 use crate::app::App;
 use winit::event_loop::EventLoop;
