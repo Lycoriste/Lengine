@@ -134,7 +134,7 @@ pub async fn load_model(
                             ],
                             tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
                             normal: [0.0, 0.0, 0.0],
-                            tangent: [0.0, 0.0, 0.0],
+                            tangent: [0.0, 0.0, 0.0, 0.0],
                         }
                     } else {
                         model::ModelVertex {
@@ -149,7 +149,7 @@ pub async fn load_model(
                                 m.mesh.normals[i * 3 + 1],
                                 m.mesh.normals[i * 3 + 2],
                             ],
-                            tangent:[tangent[0], tangent[1], tangent[2]],
+                            tangent:[tangent[0], tangent[1], tangent[2], tangent[3]],
                         }
                     }
                 })
