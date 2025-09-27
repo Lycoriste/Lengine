@@ -2,6 +2,7 @@ use std::io::{BufReader, Cursor};
 use wgpu::util::DeviceExt;
 use mikktspace;
 use crate::{model, texture};
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
@@ -23,10 +24,21 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     };
     #[cfg(not(target_arch = "wasm32"))]
     let txt = {
-        let path = std::path::Path::new(env!("OUT_DIR"))
+
+        let path = std::env::current_exe().map_err(|e| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, format!("Failed to get executable path: {}", e))
+        })?;
+    
+        let base_dir = path.parent().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "Could not resolve executable's parent directory")
+        })?.to_path_buf();
+
+
+        let final_path = base_dir
             .join("res")
             .join(file_name);
-        std::fs::read_to_string(path)?
+        
+        std::fs::read_to_string(final_path)?
     };
 
     Ok(txt)
@@ -40,7 +52,14 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     };
     #[cfg(not(target_arch = "wasm32"))]
     let data = {
-        let out_dir = std::path::Path::new(env!("OUT_DIR"));
+        let exe_path = std::env::current_exe().map_err(|e| {
+            IoError::new(IoErrorKind::NotFound, format!("Failed to get executable path: {}", e))
+        })?;
+
+        let out_dir = exe_path.parent().ok_or_else(|| {
+            IoError::new(IoErrorKind::NotFound, "Could not resolve executable's parent directory")
+        })?.to_path_buf();
+
         println!("OUT_DIR: {:?}", out_dir);
 
         let path = out_dir
