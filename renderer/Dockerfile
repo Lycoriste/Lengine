@@ -1,5 +1,5 @@
-# build stage
-FROM rust:latest AS builder
+# Build stage
+FROM rust:1.90.0 AS builder
 
 WORKDIR /usr/src/renderer
 
@@ -9,22 +9,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock ./
-
 COPY src src/
-
+COPY res /usr/local/bin/res
 RUN cargo build --release 
-
-# runtime
-FROM archlinux:base AS runtime
-
-RUN pacman-key --init \
-    && pacman -Syu --noconfirm mesa vulkan-icd-loader libx11 wayland libglvnd \
-    && pacman -Scc --noconfirm
-
-WORKDIR /usr/local/bin
-
-COPY --from=builder /usr/src/renderer/target/release/renderer .
-
-COPY res /usr/local/res
-
-CMD ["./renderer"]
