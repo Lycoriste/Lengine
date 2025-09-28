@@ -3,6 +3,28 @@ use wgpu::util::DeviceExt;
 use mikktspace;
 use crate::{model, texture};
 
+pub fn get_res_path(file_name: &str) -> std::path::PathBuf {
+    if let Ok(res_dir) = std::env::var("RES_DIR") {
+        return std::path::Path::new(&res_dir).join(file_name);
+    }
+
+    let mut dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::env::current_dir().unwrap());
+
+    loop {
+        let candidate = dir.join("res");
+        if candidate.exists() {
+            return candidate.join(file_name);
+        }
+        if !dir.pop() {
+            break; // reached filesystem root
+        }
+    }
+
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("res").join(file_name)}
+
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
     let window = web_sys::window().unwrap();
@@ -19,13 +41,11 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     #[cfg(target_arch = "wasm32")]
     let txt = {
         let url = format_url(file_name);
-        reqwest::get(url).await?.text().await?
+        request::get(url).await?.text().await?
     };
     #[cfg(not(target_arch = "wasm32"))]
     let txt = {
-        let path = std::path::Path::new(env!("OUT_DIR"))
-            .join("res")
-            .join(file_name);
+        let path = get_res_path(file_name);
         std::fs::read_to_string(path)?
     };
 
@@ -40,12 +60,7 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     };
     #[cfg(not(target_arch = "wasm32"))]
     let data = {
-        let out_dir = std::path::Path::new(env!("OUT_DIR"));
-        println!("OUT_DIR: {:?}", out_dir);
-
-        let path = out_dir
-            .join("res")
-            .join(file_name);
+        let path = get_res_path(file_name);
         
         println!("Attempting to read file at path: {:?}", path);
         std::fs::read(&path)?
